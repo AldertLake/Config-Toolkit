@@ -17,8 +17,6 @@ public class ConfigToolkit : ModuleRules
 			}
 		);
 
-		// FAES is provided by Core in stock UE 5.4+. If a custom engine exposes
-		// a standalone AES module, consume it without breaking stock engines.
 		if (File.Exists(Path.Combine(EngineDirectory, "Source", "Runtime", "AES", "AES.Build.cs")))
 		{
 			PrivateDependencyModuleNames.Add("AES");

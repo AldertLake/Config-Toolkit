@@ -6,6 +6,7 @@
 
 UConfigToolkitSettings::UConfigToolkitSettings()
 	: DefaultConfigFilename(TEXT("Game"))
+	, bAutomaticallyFlushConfig(true)
 	, AESEncryptionKey(TEXT(""))
 {
 }
@@ -28,7 +29,7 @@ FText UConfigToolkitSettings::GetSectionText() const
 
 FText UConfigToolkitSettings::GetSectionDescription() const
 {
-	return LOCTEXT("SectionDescription", "Default filename and AES key used by Config Toolkit Blueprint nodes.");
+	return LOCTEXT("SectionDescription", "Default file, flush behavior, and AES key used by Config Toolkit Blueprint nodes.");
 }
 
 void UConfigToolkitSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)

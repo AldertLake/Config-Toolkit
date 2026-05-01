@@ -27,6 +27,12 @@ namespace ConfigToolkit::Private
 		return ConfigName.IsEmpty() ? FString(TEXT("Game")) : ConfigName;
 	}
 
+	bool ShouldAutomaticallyFlushConfig()
+	{
+		const UConfigToolkitSettings* Settings = GetDefault<UConfigToolkitSettings>();
+		return !Settings || Settings->bAutomaticallyFlushConfig;
+	}
+
 	FString ResolveConfigFilename(const FString& Filename)
 	{
 		FString Resolved = Filename.TrimStartAndEnd();
@@ -172,8 +178,13 @@ namespace ConfigToolkit::Private
 		return true;
 	}
 
-	bool FlushConfigFileAfterWrite(const TCHAR* Operation, const FString& ResolvedFilename, const bool bAllowMissingAfterFlush = false)
+	bool FinalizeConfigWrite(const TCHAR* Operation, const FString& ResolvedFilename, const bool bAllowMissingAfterFlush = false)
 	{
+		if (!ShouldAutomaticallyFlushConfig())
+		{
+			return true;
+		}
+
 		if (!HasConfig())
 		{
 			return false;
@@ -306,13 +317,8 @@ namespace ConfigToolkit::Private
 
 		for (const FString& Value : Values)
 		{
-			void* TempValue = FMemory_Alloca(Property->GetSize());
-			Property->InitializeValue(TempValue);
-
-			const bool bImported = ImportPropertyValueFromString(Property, TempValue, Value, OwnerObject);
-			Property->DestroyValue(TempValue);
-
-			if (!bImported)
+			FDefaultConstructedPropertyElement TempValue(Property);
+			if (!ImportPropertyValueFromString(Property, TempValue.GetObjAddress(), Value, OwnerObject))
 			{
 				return false;
 			}
@@ -385,14 +391,9 @@ namespace ConfigToolkit::Private
 			return false;
 		}
 
-		void* TempValue = FMemory_Alloca(Property->GetSize());
-		Property->InitializeValue(TempValue);
-
-		const bool bImported = ImportPropertyValueFromString(Property, TempValue, SerializedValue, OwnerObject);
-		const bool bEquivalent = bImported && Property->Identical(TempValue, ValueAddress, PPF_None);
-
-		Property->DestroyValue(TempValue);
-		return bEquivalent;
+		FDefaultConstructedPropertyElement TempValue(Property);
+		return ImportPropertyValueFromString(Property, TempValue.GetObjAddress(), SerializedValue, OwnerObject)
+			&& Property->Identical(TempValue.GetObjAddress(), ValueAddress, PPF_None);
 	}
 
 	bool GetAESKey(FAES::FAESKey& OutKey)
@@ -501,7 +502,7 @@ namespace ConfigToolkit::Private
 
 	bool GenericWriteAnyConfigValue(const FString& Section, const FString& Key, const FProperty* ValueProperty, const void* ValueAddress, const FString& Filename, UObject* OwnerObject)
 	{
-		static const TCHAR* Operation = TEXT("Write Any Config Value");
+		static const TCHAR* Operation = TEXT("Write Config Value");
 
 		if (!HasConfig() || !ValidateSectionAndKey(Operation, Section, Key))
 		{
@@ -523,12 +524,12 @@ namespace ConfigToolkit::Private
 		}
 
 		GConfig->SetString(*Section, *Key, *SerializedValue, ResolvedFilename);
-		return FlushConfigFileAfterWrite(Operation, ResolvedFilename);
+		return FinalizeConfigWrite(Operation, ResolvedFilename);
 	}
 
 	bool GenericReadAnyConfigValue(const FString& Section, const FString& Key, const FProperty* ValueProperty, void* ValueAddress, const FString& Filename, UObject* OwnerObject)
 	{
-		static const TCHAR* Operation = TEXT("Read Any Config Value");
+		static const TCHAR* Operation = TEXT("Read Config Value");
 
 		if (!HasConfig() || !ValidateSectionAndKey(Operation, Section, Key))
 		{
@@ -576,8 +577,14 @@ namespace ConfigToolkit::Private
 			return false;
 		}
 
+		if (SerializedValues.IsEmpty())
+		{
+			UE_LOG(LogConfigToolkit, Warning, TEXT("%s wrote an empty array. Native config arrays do not persist an explicit empty-array marker, so a later read returns false until at least one value is saved. ConfigName='%s', File='%s', Section='%s', Key='%s'."),
+				Operation, *ResolvedFilename, *GetDiskConfigFilename(ResolvedFilename), *Section, *Key);
+		}
+
 		GConfig->SetArray(*Section, *Key, SerializedValues, ResolvedFilename);
-		return FlushConfigFileAfterWrite(Operation, ResolvedFilename, SerializedValues.IsEmpty());
+		return FinalizeConfigWrite(Operation, ResolvedFilename, SerializedValues.IsEmpty());
 	}
 
 	bool GenericReadConfigArray(const FString& Section, const FString& Key, const FArrayProperty* ArrayProperty, void* ArrayAddress, const FString& Filename, UObject* OwnerObject)
@@ -647,7 +654,7 @@ namespace ConfigToolkit::Private
 
 		SerializedValues.Add(MoveTemp(SerializedValue));
 		GConfig->SetArray(*Section, *Key, SerializedValues, ResolvedFilename);
-		return FlushConfigFileAfterWrite(Operation, ResolvedFilename);
+		return FinalizeConfigWrite(Operation, ResolvedFilename);
 	}
 
 	bool GenericRemoveFromConfigArray(const FString& Section, const FString& Key, const FProperty* ValueProperty, const void* ValueAddress, const FString& Filename, UObject* OwnerObject)
@@ -690,7 +697,7 @@ namespace ConfigToolkit::Private
 			}
 
 			GConfig->SetArray(*Section, *Key, SerializedValues, ResolvedFilename);
-			return FlushConfigFileAfterWrite(Operation, ResolvedFilename, SerializedValues.IsEmpty());
+			return FinalizeConfigWrite(Operation, ResolvedFilename, SerializedValues.IsEmpty());
 		}
 		else
 		{
@@ -706,7 +713,7 @@ using namespace ConfigToolkit::Private;
 
 bool UConfigToolkitBPLibrary::WriteAnyConfigValue(const FString& Section, const FString& Key, const int32& Value, const FString& Filename)
 {
-	UE_LOG(LogConfigToolkit, Error, TEXT("Write Any Config Value failed: This wildcard node must be executed through the Blueprint VM custom thunk path. Native C++ calls cannot use the placeholder int32 signature."));
+	UE_LOG(LogConfigToolkit, Error, TEXT("Write Config Value failed: This wildcard node must be executed through the Blueprint VM custom thunk path. Native C++ calls cannot use the placeholder int32 signature."));
 	checkNoEntry();
 	return false;
 }
@@ -732,7 +739,7 @@ DEFINE_FUNCTION(UConfigToolkitBPLibrary::execWriteAnyConfigValue)
 
 bool UConfigToolkitBPLibrary::ReadAnyConfigValue(const FString& Section, const FString& Key, int32& Value, const FString& Filename)
 {
-	UE_LOG(LogConfigToolkit, Error, TEXT("Read Any Config Value failed: This wildcard node must be executed through the Blueprint VM custom thunk path. Native C++ calls cannot use the placeholder int32 signature."));
+	UE_LOG(LogConfigToolkit, Error, TEXT("Read Config Value failed: This wildcard node must be executed through the Blueprint VM custom thunk path. Native C++ calls cannot use the placeholder int32 signature."));
 	checkNoEntry();
 	return false;
 }
@@ -896,7 +903,7 @@ bool UConfigToolkitBPLibrary::WriteEncryptedString(const FString& Section, const
 	}
 
 	GConfig->SetString(*Section, *Key, *EncryptedValue, ResolvedFilename);
-	return FlushConfigFileAfterWrite(Operation, ResolvedFilename);
+	return FinalizeConfigWrite(Operation, ResolvedFilename);
 }
 
 bool UConfigToolkitBPLibrary::ReadEncryptedString(const FString& Section, const FString& Key, FString& Value, const FString& Filename)
@@ -967,7 +974,7 @@ bool UConfigToolkitBPLibrary::ClearConfigKey(const FString& Section, const FStri
 		return false;
 	}
 
-	return FlushConfigFileAfterWrite(Operation, ResolvedFilename, true);
+	return FinalizeConfigWrite(Operation, ResolvedFilename, true);
 }
 
 bool UConfigToolkitBPLibrary::ClearConfigSection(const FString& Section, const FString& Filename)
@@ -991,7 +998,7 @@ bool UConfigToolkitBPLibrary::ClearConfigSection(const FString& Section, const F
 		return false;
 	}
 
-	return FlushConfigFileAfterWrite(Operation, ResolvedFilename, true);
+	return FinalizeConfigWrite(Operation, ResolvedFilename, true);
 }
 
 bool UConfigToolkitBPLibrary::DoesConfigFileExist(const FString& Filename)

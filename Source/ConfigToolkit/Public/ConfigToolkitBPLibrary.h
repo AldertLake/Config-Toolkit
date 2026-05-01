@@ -15,26 +15,26 @@ class CONFIGTOOLKIT_API UConfigToolkitBPLibrary : public UBlueprintFunctionLibra
 
 public:
 	/**
-	 * Writes any single Blueprint value to a config key.
+	 * Writes a single Blueprint value to a config key.
 	 * @param Section Config section name, for example "Player Settings".
 	 * @param Key Config key name inside the section, for example "Mouse Sensitivity".
 	 * @param Value Connect the value you want to save. The pin changes type to match your variable.
 	 * @param FileName Optional config file name. Leave empty to use the Default Config File Name from Project Settings.
-	 * @return True if the value was serialized and written to GConfig.
+	 * @return True if the value was serialized and written to GConfig. If Automatically Flush Config is enabled, the file is also flushed to disk.
 	 */
-	UFUNCTION(BlueprintCallable, CustomThunk, Category="Config Toolkit|Values", meta=(DisplayName="Write Any Config Value", CustomStructureParam="Value", AutoCreateRefTerm="Value", ReturnDisplayName="Success"))
+	UFUNCTION(BlueprintCallable, CustomThunk, Category="Config Toolkit|Values", meta=(DisplayName="Write Config Value", CustomStructureParam="Value", AutoCreateRefTerm="Value", ReturnDisplayName="Success"))
 	static bool WriteAnyConfigValue(const FString& Section, const FString& Key, const int32& Value, UPARAM(DisplayName="File Name") const FString& FileName = FString(TEXT("")));
 	DECLARE_FUNCTION(execWriteAnyConfigValue);
 
 	/**
-	 * Reads any single Blueprint value from a config key.
+	 * Reads a single Blueprint value from a config key.
 	 * @param Section Config section name, for example "Player Settings".
 	 * @param Key Config key name inside the section, for example "Mouse Sensitivity".
 	 * @param Value Output value read from config. Drag from this output pin and promote it to a variable, or connect it directly to later nodes.
 	 * @param FileName Optional config file name. Leave empty to use the Default Config File Name from Project Settings.
 	 * @return True if the key existed and the text value was imported into the output pin.
 	 */
-	UFUNCTION(BlueprintCallable, CustomThunk, Category="Config Toolkit|Values", meta=(DisplayName="Read Any Config Value", CustomStructureParam="Value", ReturnDisplayName="Success"))
+	UFUNCTION(BlueprintCallable, CustomThunk, Category="Config Toolkit|Values", meta=(DisplayName="Read Config Value", CustomStructureParam="Value", ReturnDisplayName="Success"))
 	static bool ReadAnyConfigValue(const FString& Section, const FString& Key, int32& Value, UPARAM(DisplayName="File Name") const FString& FileName = FString(TEXT("")));
 	DECLARE_FUNCTION(execReadAnyConfigValue);
 
@@ -44,7 +44,7 @@ public:
 	 * @param Key Config array key. Existing entries for this key are replaced.
 	 * @param Values Array values to save. The pin changes type to match your array.
 	 * @param FileName Optional config file name. Leave empty to use the Default Config File Name from Project Settings.
-	 * @return True if the array was serialized and written to GConfig.
+	 * @return True if the array was serialized and written to GConfig. If Automatically Flush Config is enabled, the file is also flushed to disk.
 	 */
 	UFUNCTION(BlueprintCallable, CustomThunk, Category="Config Toolkit|Arrays", meta=(DisplayName="Write Config Array", ArrayParm="Values", ReturnDisplayName="Success"))
 	static bool WriteConfigArray(const FString& Section, const FString& Key, const TArray<int32>& Values, UPARAM(DisplayName="File Name") const FString& FileName = FString(TEXT("")));
@@ -92,7 +92,7 @@ public:
 	 * @param Key Config key name inside the section.
 	 * @param Value Plain text string to encrypt and save.
 	 * @param FileName Optional config file name. Leave empty to use the Default Config File Name from Project Settings.
-	 * @return True if encryption and config write succeeded.
+	 * @return True if encryption and config write succeeded. If Automatically Flush Config is enabled, the file is also flushed to disk.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Config Toolkit|Encryption", meta=(DisplayName="Write Encrypted String", ReturnDisplayName="Success"))
 	static bool WriteEncryptedString(const FString& Section, const FString& Key, const FString& Value, UPARAM(DisplayName="File Name") const FString& FileName = FString(TEXT("")));
@@ -129,7 +129,7 @@ public:
 	 * @param Section Config section name.
 	 * @param Key Config key to remove.
 	 * @param FileName Optional config file name. Leave empty to use the Default Config File Name from Project Settings.
-	 * @return True if the key existed and was removed.
+	 * @return True if the key existed and was removed. If Automatically Flush Config is enabled, the file is also flushed to disk.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Config Toolkit|Utilities", meta=(DisplayName="Clear Config Key", ReturnDisplayName="Success"))
 	static bool ClearConfigKey(const FString& Section, const FString& Key, UPARAM(DisplayName="File Name") const FString& FileName = FString(TEXT("")));
@@ -138,7 +138,7 @@ public:
 	 * Removes every key from one config section.
 	 * @param Section Config section name to clear.
 	 * @param FileName Optional config file name. Leave empty to use the Default Config File Name from Project Settings.
-	 * @return True if the section existed and was cleared.
+	 * @return True if the section existed and was cleared. If Automatically Flush Config is enabled, the file is also flushed to disk.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Config Toolkit|Utilities", meta=(DisplayName="Clear Config Section", ReturnDisplayName="Success"))
 	static bool ClearConfigSection(const FString& Section, UPARAM(DisplayName="File Name") const FString& FileName = FString(TEXT("")));
@@ -162,7 +162,7 @@ public:
 	/**
 	 * Forces the resolved config file to be written to disk.
 	 * @param FileName Optional config file name. Leave empty to use the Default Config File Name from Project Settings.
-	 * @return True if GConfig was available and the flush request was issued.
+	 * @return True if GConfig was available, the config file was loaded, and the flush request was issued.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Config Toolkit|Utilities", meta=(DisplayName="Flush Config", ReturnDisplayName="Success"))
 	static bool FlushConfig(UPARAM(DisplayName="File Name") const FString& FileName = FString(TEXT("")));

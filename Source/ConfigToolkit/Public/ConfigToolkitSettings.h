@@ -15,12 +15,13 @@ class CONFIGTOOLKIT_API UConfigToolkitSettings : public UDeveloperSettings
 public:
 	UConfigToolkitSettings();
 
-	/** Config file name used when a Blueprint node receives an empty File Name pin. */
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="General", meta=(DisplayName="Default Config File Name"))
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="General", meta=(DisplayName="Default Config File Name", ToolTip="Config file name used when a Blueprint node receives an empty File Name pin."))
 	FString DefaultConfigFilename;
 
-	/** AES-256 key used by encrypted value nodes. Must be exactly 32 characters and 32 UTF-8 bytes. */
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Encryption", meta=(DisplayName="AES Encryption Key", PasswordField=true))
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="General", meta=(DisplayName="Automatically Flush Config", ToolTip="When enabled, write and clear nodes flush immediately after changing config. When disabled, call Flush Config manually."))
+	bool bAutomaticallyFlushConfig;
+
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Encryption", meta=(DisplayName="AES Encryption Key", PasswordField=true, ToolTip="AES-256 key used by encrypted value nodes. Must be exactly 32 characters and 32 UTF-8 bytes."))
 	FString AESEncryptionKey;
 
 	virtual FName GetCategoryName() const override;
