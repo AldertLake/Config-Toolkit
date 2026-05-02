@@ -21,6 +21,9 @@ public:
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="General", meta=(DisplayName="Automatically Flush Config", ToolTip="When enabled, write and clear nodes flush immediately after changing config. When disabled, call Flush Config manually."))
 	bool bAutomaticallyFlushConfig;
 
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="General", meta=(DisplayName="Automatically Handle Soft Reference Paths", ToolTip="When enabled, wildcard read and write nodes save and read Soft Object Reference and Soft Class Reference pins as path strings. When disabled, use the manual conversion nodes."))
+	bool bAutomaticallyHandleSoftReferencePaths;
+
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Encryption", meta=(DisplayName="AES Encryption Key", PasswordField=true, ToolTip="AES-256 key used by encrypted value nodes. Must be exactly 32 characters and 32 UTF-8 bytes."))
 	FString AESEncryptionKey;
 

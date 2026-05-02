@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "UObject/SoftObjectPtr.h"
 #include "ConfigToolkitBPLibrary.generated.h"
 
 /**
@@ -125,6 +126,24 @@ public:
 	static FString ConvertClassToPath(UClass* Class);
 
 	/**
+	 * Converts a soft object path string to a soft asset reference without loading the asset.
+	 * @param Path Soft object path string, for example "/Game/Folder/Asset.Asset".
+	 * @param Asset Soft asset reference output. Use Unreal's async load nodes if you need the loaded object.
+	 * @return True if Path was a valid soft object path string.
+	 */
+	UFUNCTION(BlueprintPure, Category="Config Toolkit|Asset Paths", meta=(DisplayName="Convert Path To Asset", ReturnDisplayName="Success"))
+	static bool ConvertPathToSoftAssetReference(const FString& Path, UPARAM(DisplayName="Asset") TSoftObjectPtr<UObject>& Asset);
+
+	/**
+	 * Converts a soft class path string to a soft class reference without loading the class.
+	 * @param Path Soft class path string.
+	 * @param Class Soft class reference output. Use Unreal's async load nodes if you need the loaded class.
+	 * @return True if Path was a valid soft class path string.
+	 */
+	UFUNCTION(BlueprintPure, Category="Config Toolkit|Asset Paths", meta=(DisplayName="Convert Path To Class", ReturnDisplayName="Success"))
+	static bool ConvertPathToSoftClassReference(const FString& Path, UPARAM(DisplayName="Class") TSoftClassPtr<UObject>& Class);
+
+	/**
 	 * Removes a scalar value or every repeated array entry for one key.
 	 * @param Section Config section name.
 	 * @param Key Config key to remove.
@@ -142,6 +161,33 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Config Toolkit|Utilities", meta=(DisplayName="Clear Config Section", ReturnDisplayName="Success"))
 	static bool ClearConfigSection(const FString& Section, UPARAM(DisplayName="File Name") const FString& FileName = FString(TEXT("")));
+
+	/**
+	 * Removes a whole config section and all keys in it.
+	 * @param Section Config section name to remove.
+	 * @param FileName Optional config file name. Leave empty to use the Default Config File Name from Project Settings.
+	 * @return True if the section existed and was removed. If Automatically Flush Config is enabled, the file is also flushed to disk.
+	 */
+	UFUNCTION(BlueprintCallable, Category="Config Toolkit|Utilities", meta=(DisplayName="Remove Config Section", ReturnDisplayName="Success"))
+	static bool RemoveConfigSection(const FString& Section, UPARAM(DisplayName="File Name") const FString& FileName = FString(TEXT("")));
+
+	/**
+	 * Deletes a whole resolved config file from disk and unloads it from GConfig when possible.
+	 * @param FileName Optional config file name. Leave empty to use the Default Config File Name from Project Settings.
+	 * @return True if the file existed and was deleted.
+	 */
+	UFUNCTION(BlueprintCallable, Category="Config Toolkit|Utilities", meta=(DisplayName="Delete Config File", ReturnDisplayName="Success"))
+	static bool DeleteConfigFile(UPARAM(DisplayName="File Name") const FString& FileName = FString(TEXT("")));
+
+	/**
+	 * Checks whether a key exists in a config file. If Section is empty, all sections are searched.
+	 * @param Section Optional config section name. Leave empty to search every section in the file.
+	 * @param Key Config key name to find.
+	 * @param FileName Optional config file name. Leave empty to use the Default Config File Name from Project Settings.
+	 * @return True if the key exists in the requested section, or anywhere in the file when Section is empty.
+	 */
+	UFUNCTION(BlueprintPure, Category="Config Toolkit|Utilities", meta=(DisplayName="Does Config Key Exist", ReturnDisplayName="Exists"))
+	static bool DoesConfigKeyExist(const FString& Section, const FString& Key, UPARAM(DisplayName="File Name") const FString& FileName = FString(TEXT("")));
 
 	/**
 	 * Checks whether a config file exists on disk.

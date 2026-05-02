@@ -8,6 +8,7 @@
 #include "Misc/Base64.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Paths.h"
+#include "Misc/ScopeExit.h"
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/SoftObjectPath.h"
 #include "UObject/Stack.h"
@@ -31,6 +32,12 @@ namespace ConfigToolkit::Private
 	{
 		const UConfigToolkitSettings* Settings = GetDefault<UConfigToolkitSettings>();
 		return !Settings || Settings->bAutomaticallyFlushConfig;
+	}
+
+	bool ShouldAutomaticallyHandleSoftReferencePaths()
+	{
+		const UConfigToolkitSettings* Settings = GetDefault<UConfigToolkitSettings>();
+		return !Settings || Settings->bAutomaticallyHandleSoftReferencePaths;
 	}
 
 	FString ResolveConfigFilename(const FString& Filename)
@@ -215,15 +222,54 @@ namespace ConfigToolkit::Private
 		return GConfig && GConfig->DoesSectionExist(*Section, ResolvedFilename);
 	}
 
-	bool DoesConfigKeyExist(const FString& Section, const FString& Key, const FString& ResolvedFilename)
+	FConfigFile* FindConfigFileForRead(const FString& ResolvedFilename)
 	{
 		if (!GConfig)
+		{
+			return nullptr;
+		}
+
+		return GConfig->Find(ResolvedFilename);
+	}
+
+	bool DoesConfigKeyExistInSection(const FString& Section, const FString& Key, const FString& ResolvedFilename)
+	{
+		const FConfigFile* ConfigFile = FindConfigFileForRead(ResolvedFilename);
+		const FConfigSection* ConfigSection = ConfigFile ? ConfigFile->FindSection(Section) : nullptr;
+		return ConfigSection && ConfigSection->Contains(FName(*Key));
+	}
+
+	bool DoesConfigKeyExistInFile(const FString& Section, const FString& Key, const FString& ResolvedFilename)
+	{
+		if (Key.TrimStartAndEnd().IsEmpty())
 		{
 			return false;
 		}
 
-		const FConfigSection* ConfigSection = GConfig->GetSection(*Section, false, ResolvedFilename);
-		return ConfigSection && ConfigSection->Contains(FName(*Key));
+		const FConfigFile* ConfigFile = FindConfigFileForRead(ResolvedFilename);
+		if (!ConfigFile)
+		{
+			return false;
+		}
+
+		if (!Section.TrimStartAndEnd().IsEmpty())
+		{
+			const FConfigSection* ConfigSection = ConfigFile->FindSection(Section);
+			return ConfigSection && ConfigSection->Contains(FName(*Key));
+		}
+
+		TArray<FString> Sections;
+		ConfigFile->GetKeys(Sections);
+		for (const FString& ExistingSection : Sections)
+		{
+			const FConfigSection* ConfigSection = ConfigFile->FindSection(ExistingSection);
+			if (ConfigSection && ConfigSection->Contains(FName(*Key)))
+			{
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	void LogMissingConfigLocation(const TCHAR* Operation, const FString& Section, const FString& Key, const FString& ResolvedFilename)
@@ -243,7 +289,7 @@ namespace ConfigToolkit::Private
 			return;
 		}
 
-		if (!DoesConfigKeyExist(Section, Key, ResolvedFilename))
+		if (!DoesConfigKeyExistInSection(Section, Key, ResolvedFilename))
 		{
 			UE_LOG(LogConfigToolkit, Warning, TEXT("%s failed: Key was not found. ConfigName='%s', File='%s', Section='%s', Key='%s'."),
 				Operation, *ResolvedFilename, *DiskFilename, *Section, *Key);
@@ -275,12 +321,117 @@ namespace ConfigToolkit::Private
 			Operation, *ResolvedFilename, *DiskFilename, *Section);
 	}
 
+	bool RemoveConfigSectionFromFile(const TCHAR* Operation, const FString& Section, const FString& ResolvedFilename)
+	{
+		if (!EnsureConfigFileReadyForWrite(Operation, ResolvedFilename, false))
+		{
+			return false;
+		}
+
+		FConfigFile* ConfigFile = GConfig ? GConfig->FindConfigFile(ResolvedFilename) : nullptr;
+		if (!ConfigFile || !ConfigFile->FindSection(Section))
+		{
+			LogMissingConfigSection(Operation, Section, ResolvedFilename);
+			return false;
+		}
+
+		if (ConfigFile->Remove(Section) <= 0)
+		{
+			LogMissingConfigSection(Operation, Section, ResolvedFilename);
+			return false;
+		}
+
+		ConfigFile->Dirty = true;
+		ConfigFile->NoSave = false;
+		return FinalizeConfigWrite(Operation, ResolvedFilename, true);
+	}
+
+	bool IsEmptySoftReferenceText(const FString& Value)
+	{
+		const FString TrimmedValue = Value.TrimStartAndEnd();
+		return TrimmedValue.IsEmpty() || TrimmedValue.Equals(TEXT("None"), ESearchCase::IgnoreCase);
+	}
+
+	bool ValidateSoftObjectPathText(const FString& Value)
+	{
+		if (IsEmptySoftReferenceText(Value))
+		{
+			return true;
+		}
+
+		const FSoftObjectPath SoftObjectPath(Value.TrimStartAndEnd());
+		return SoftObjectPath.IsValid();
+	}
+
+	bool ValidateSoftClassPathText(const FString& Value)
+	{
+		if (IsEmptySoftReferenceText(Value))
+		{
+			return true;
+		}
+
+		const FSoftClassPath SoftClassPath(Value.TrimStartAndEnd());
+		return SoftClassPath.IsValid();
+	}
+
 	bool ExportPropertyValueToString(const FProperty* Property, const void* ValueAddress, FString& OutValue, UObject* OwnerObject)
 	{
 		if (!Property || !ValueAddress)
 		{
 			UE_LOG(LogConfigToolkit, Warning, TEXT("Config Toolkit wildcard export failed: property or value address is invalid."));
 			return false;
+		}
+
+		if (CastField<FSoftClassProperty>(Property))
+		{
+			if (!ShouldAutomaticallyHandleSoftReferencePaths())
+			{
+				UE_LOG(LogConfigToolkit, Warning, TEXT("Config Toolkit wildcard export failed: automatic soft reference path handling is disabled. Use Convert Class To Path and write the path string manually."));
+				return false;
+			}
+
+			const FSoftObjectPtr* SoftObjectPtr = reinterpret_cast<const FSoftObjectPtr*>(ValueAddress);
+			OutValue = SoftObjectPtr ? SoftObjectPtr->ToSoftObjectPath().ToString() : FString();
+			return true;
+		}
+
+		if (CastField<FSoftObjectProperty>(Property))
+		{
+			if (!ShouldAutomaticallyHandleSoftReferencePaths())
+			{
+				UE_LOG(LogConfigToolkit, Warning, TEXT("Config Toolkit wildcard export failed: automatic soft reference path handling is disabled. Use Convert Asset To Path and write the path string manually."));
+				return false;
+			}
+
+			const FSoftObjectPtr* SoftObjectPtr = reinterpret_cast<const FSoftObjectPtr*>(ValueAddress);
+			OutValue = SoftObjectPtr ? SoftObjectPtr->ToSoftObjectPath().ToString() : FString();
+			return true;
+		}
+
+		if (const FClassProperty* ClassProperty = CastField<FClassProperty>(Property))
+		{
+			if (!ShouldAutomaticallyHandleSoftReferencePaths())
+			{
+				UE_LOG(LogConfigToolkit, Warning, TEXT("Config Toolkit wildcard export failed: automatic soft reference path handling is disabled. Use Convert Class To Path and write the path string manually."));
+				return false;
+			}
+
+			const UClass* Class = Cast<UClass>(ClassProperty->GetObjectPropertyValue(ValueAddress));
+			OutValue = Class ? FSoftClassPath(Class).ToString() : FString();
+			return true;
+		}
+
+		if (const FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Property))
+		{
+			if (!ShouldAutomaticallyHandleSoftReferencePaths())
+			{
+				UE_LOG(LogConfigToolkit, Warning, TEXT("Config Toolkit wildcard export failed: automatic soft reference path handling is disabled. Use Convert Asset To Path and write the path string manually."));
+				return false;
+			}
+
+			const UObject* Object = ObjectProperty->GetObjectPropertyValue(ValueAddress);
+			OutValue = Object ? FSoftObjectPath(Object).ToString() : FString();
+			return true;
 		}
 
 		OutValue.Reset();
@@ -296,32 +447,78 @@ namespace ConfigToolkit::Private
 			return false;
 		}
 
+		if (const FSoftClassProperty* SoftClassProperty = CastField<FSoftClassProperty>(Property))
+		{
+			if (!ShouldAutomaticallyHandleSoftReferencePaths())
+			{
+				UE_LOG(LogConfigToolkit, Warning, TEXT("Config Toolkit wildcard import failed: automatic soft reference path handling is disabled. Use Convert Path To Class and handle the soft class reference manually."));
+				return false;
+			}
+
+			if (!ValidateSoftClassPathText(Value))
+			{
+				UE_LOG(LogConfigToolkit, Warning, TEXT("Config Toolkit wildcard import failed: value '%s' is not a valid soft class path for property '%s'."),
+					*Value, *Property->GetName());
+				return false;
+			}
+
+			if (IsEmptySoftReferenceText(Value))
+			{
+				SoftClassProperty->ClearValue(ValueAddress);
+				return true;
+			}
+
+			const FString TrimmedValue = Value.TrimStartAndEnd();
+			FSoftObjectPtr* SoftObjectPtr = reinterpret_cast<FSoftObjectPtr*>(ValueAddress);
+			*SoftObjectPtr = FSoftObjectPtr(FSoftClassPath(TrimmedValue));
+			return true;
+		}
+
+		if (const FSoftObjectProperty* SoftObjectProperty = CastField<FSoftObjectProperty>(Property))
+		{
+			if (!ShouldAutomaticallyHandleSoftReferencePaths())
+			{
+				UE_LOG(LogConfigToolkit, Warning, TEXT("Config Toolkit wildcard import failed: automatic soft reference path handling is disabled. Use Convert Path To Asset and handle the soft asset reference manually."));
+				return false;
+			}
+
+			if (!ValidateSoftObjectPathText(Value))
+			{
+				UE_LOG(LogConfigToolkit, Warning, TEXT("Config Toolkit wildcard import failed: value '%s' is not a valid soft object path for property '%s'."),
+					*Value, *Property->GetName());
+				return false;
+			}
+
+			if (IsEmptySoftReferenceText(Value))
+			{
+				SoftObjectProperty->ClearValue(ValueAddress);
+				return true;
+			}
+
+			const FString TrimmedValue = Value.TrimStartAndEnd();
+			FSoftObjectPtr* SoftObjectPtr = reinterpret_cast<FSoftObjectPtr*>(ValueAddress);
+			*SoftObjectPtr = FSoftObjectPtr(FSoftObjectPath(TrimmedValue));
+			return true;
+		}
+
+		if (CastField<FClassProperty>(Property))
+		{
+			UE_LOG(LogConfigToolkit, Warning, TEXT("Config Toolkit wildcard import failed: reading config paths into hard Class Reference pins would require synchronous loading. Read into a Soft Class Reference pin, then use Unreal's async load nodes if a loaded class is needed."));
+			return false;
+		}
+
+		if (CastField<FObjectPropertyBase>(Property))
+		{
+			UE_LOG(LogConfigToolkit, Warning, TEXT("Config Toolkit wildcard import failed: reading config paths into hard Object Reference pins would require synchronous loading. Read into a Soft Object Reference pin, then use Unreal's async load nodes if a loaded object is needed."));
+			return false;
+		}
+
 		const TCHAR* Result = Property->ImportText_Direct(*Value, ValueAddress, OwnerObject, PPF_None);
 		if (!Result)
 		{
 			UE_LOG(LogConfigToolkit, Warning, TEXT("Config Toolkit wildcard import failed: value '%s' could not be imported into property '%s' of type '%s'."),
 				*Value, *Property->GetName(), *Property->GetCPPType());
 			return false;
-		}
-
-		return true;
-	}
-
-	bool ValidateImportedTextValues(const FProperty* Property, const TArray<FString>& Values, UObject* OwnerObject)
-	{
-		if (!Property)
-		{
-			UE_LOG(LogConfigToolkit, Warning, TEXT("Config Toolkit array import failed: array inner property is invalid."));
-			return false;
-		}
-
-		for (const FString& Value : Values)
-		{
-			FDefaultConstructedPropertyElement TempValue(Property);
-			if (!ImportPropertyValueFromString(Property, TempValue.GetObjAddress(), Value, OwnerObject))
-			{
-				return false;
-			}
 		}
 
 		return true;
@@ -353,6 +550,24 @@ namespace ConfigToolkit::Private
 		return true;
 	}
 
+	bool ImportPropertyValueFromStringStaged(const FProperty* Property, void* ValueAddress, const FString& Value, UObject* OwnerObject)
+	{
+		if (!Property || !ValueAddress)
+		{
+			UE_LOG(LogConfigToolkit, Warning, TEXT("Config Toolkit wildcard import failed: property or value address is invalid."));
+			return false;
+		}
+
+		FDefaultConstructedPropertyElement TempValue(Property);
+		if (!ImportPropertyValueFromString(Property, TempValue.GetObjAddress(), Value, OwnerObject))
+		{
+			return false;
+		}
+
+		Property->CopyCompleteValue(ValueAddress, TempValue.GetObjAddress());
+		return true;
+	}
+
 	bool ImportStringsToArray(const FArrayProperty* ArrayProperty, void* ArrayAddress, const TArray<FString>& Values, UObject* OwnerObject)
 	{
 		if (!ArrayProperty || !ArrayAddress)
@@ -362,25 +577,32 @@ namespace ConfigToolkit::Private
 		}
 
 		const FProperty* InnerProperty = ArrayProperty->Inner;
-		if (!ValidateImportedTextValues(InnerProperty, Values, OwnerObject))
+		if (!InnerProperty)
 		{
-			UE_LOG(LogConfigToolkit, Warning, TEXT("Config Toolkit array import failed: one or more values could not be converted to array element type '%s'."),
-				InnerProperty ? *InnerProperty->GetCPPType() : TEXT("<invalid>"));
+			UE_LOG(LogConfigToolkit, Warning, TEXT("Config Toolkit array import failed: array inner property is invalid."));
 			return false;
 		}
 
-		FScriptArrayHelper ArrayHelper(ArrayProperty, ArrayAddress);
-		ArrayHelper.Resize(Values.Num());
+		void* TempArrayAddress = ArrayProperty->AllocateAndInitializeValue();
+		ON_SCOPE_EXIT
+		{
+			ArrayProperty->DestroyAndFreeValue(TempArrayAddress);
+		};
+
+		FScriptArrayHelper TempArrayHelper(ArrayProperty, TempArrayAddress);
+		TempArrayHelper.Resize(Values.Num());
 
 		for (int32 Index = 0; Index < Values.Num(); ++Index)
 		{
-			if (!ImportPropertyValueFromString(InnerProperty, ArrayHelper.GetRawPtr(Index), Values[Index], OwnerObject))
+			if (!ImportPropertyValueFromString(InnerProperty, TempArrayHelper.GetRawPtr(Index), Values[Index], OwnerObject))
 			{
-				ArrayHelper.EmptyValues();
+				UE_LOG(LogConfigToolkit, Warning, TEXT("Config Toolkit array import failed: config value '%s' could not be converted to array element type '%s'."),
+					*Values[Index], *InnerProperty->GetCPPType());
 				return false;
 			}
 		}
 
+		ArrayProperty->CopyCompleteValue(ArrayAddress, TempArrayAddress);
 		return true;
 	}
 
@@ -544,7 +766,7 @@ namespace ConfigToolkit::Private
 			return false;
 		}
 
-		if (!ImportPropertyValueFromString(ValueProperty, ValueAddress, SerializedValue, OwnerObject))
+		if (!ImportPropertyValueFromStringStaged(ValueProperty, ValueAddress, SerializedValue, OwnerObject))
 		{
 			UE_LOG(LogConfigToolkit, Warning, TEXT("%s failed: Config value could not be converted to the connected output pin type. ConfigName='%s', File='%s', Section='%s', Key='%s', RawValue='%s'."),
 				Operation, *ResolvedFilename, *GetDiskConfigFilename(ResolvedFilename), *Section, *Key, *SerializedValue);
@@ -953,6 +1175,50 @@ FString UConfigToolkitBPLibrary::ConvertClassToPath(UClass* Class)
 	return Class ? FSoftClassPath(Class).ToString() : FString();
 }
 
+bool UConfigToolkitBPLibrary::ConvertPathToSoftAssetReference(const FString& Path, TSoftObjectPtr<UObject>& Asset)
+{
+	Asset = TSoftObjectPtr<UObject>();
+
+	const FString TrimmedPath = Path.TrimStartAndEnd();
+	if (TrimmedPath.IsEmpty())
+	{
+		UE_LOG(LogConfigToolkit, Warning, TEXT("Convert Path To Soft Asset Reference failed: Path is empty."));
+		return false;
+	}
+
+	const FSoftObjectPath SoftObjectPath(TrimmedPath);
+	if (!SoftObjectPath.IsValid())
+	{
+		UE_LOG(LogConfigToolkit, Warning, TEXT("Convert Path To Soft Asset Reference failed: Path is not a valid soft object path. Path='%s'."), *TrimmedPath);
+		return false;
+	}
+
+	Asset = TSoftObjectPtr<UObject>(SoftObjectPath);
+	return true;
+}
+
+bool UConfigToolkitBPLibrary::ConvertPathToSoftClassReference(const FString& Path, TSoftClassPtr<UObject>& Class)
+{
+	Class = TSoftClassPtr<UObject>();
+
+	const FString TrimmedPath = Path.TrimStartAndEnd();
+	if (TrimmedPath.IsEmpty())
+	{
+		UE_LOG(LogConfigToolkit, Warning, TEXT("Convert Path To Soft Class Reference failed: Path is empty."));
+		return false;
+	}
+
+	const FSoftClassPath SoftClassPath(TrimmedPath);
+	if (!SoftClassPath.IsValid())
+	{
+		UE_LOG(LogConfigToolkit, Warning, TEXT("Convert Path To Soft Class Reference failed: Path is not a valid soft class path. Path='%s'."), *TrimmedPath);
+		return false;
+	}
+
+	Class = TSoftClassPtr<UObject>(SoftClassPath);
+	return true;
+}
+
 bool UConfigToolkitBPLibrary::ClearConfigKey(const FString& Section, const FString& Key, const FString& Filename)
 {
 	static const TCHAR* Operation = TEXT("Clear Config Key");
@@ -987,18 +1253,86 @@ bool UConfigToolkitBPLibrary::ClearConfigSection(const FString& Section, const F
 	}
 
 	const FString ResolvedFilename = ResolveConfigFilename(Filename);
-	if (!EnsureConfigFileReadyForWrite(Operation, ResolvedFilename, false))
+	return RemoveConfigSectionFromFile(Operation, Section, ResolvedFilename);
+}
+
+bool UConfigToolkitBPLibrary::RemoveConfigSection(const FString& Section, const FString& Filename)
+{
+	static const TCHAR* Operation = TEXT("Remove Config Section");
+
+	if (!HasConfig() || !ValidateSection(Operation, Section))
 	{
 		return false;
 	}
 
-	if (!GConfig->EmptySection(*Section, ResolvedFilename))
+	const FString ResolvedFilename = ResolveConfigFilename(Filename);
+	return RemoveConfigSectionFromFile(Operation, Section, ResolvedFilename);
+}
+
+bool UConfigToolkitBPLibrary::DeleteConfigFile(const FString& Filename)
+{
+	static const TCHAR* Operation = TEXT("Delete Config File");
+
+	if (!HasConfig())
 	{
-		LogMissingConfigSection(Operation, Section, ResolvedFilename);
 		return false;
 	}
 
-	return FinalizeConfigWrite(Operation, ResolvedFilename, true);
+	const FString ResolvedFilename = ResolveConfigFilename(Filename);
+	const FString DiskFilename = GetDiskConfigFilename(ResolvedFilename);
+	if (!FPaths::GetExtension(DiskFilename, false).Equals(TEXT("ini"), ESearchCase::IgnoreCase))
+	{
+		UE_LOG(LogConfigToolkit, Warning, TEXT("%s failed: Resolved file is not an .ini file. ConfigName='%s', File='%s'."),
+			Operation, *ResolvedFilename, *DiskFilename);
+		return false;
+	}
+
+	if (!IFileManager::Get().FileExists(*DiskFilename))
+	{
+		UE_LOG(LogConfigToolkit, Warning, TEXT("%s failed: Config file does not exist. ConfigName='%s', File='%s'."),
+			Operation, *ResolvedFilename, *DiskFilename);
+		return false;
+	}
+
+	GConfig->UnloadFile(ResolvedFilename);
+	const bool bDeleted = IFileManager::Get().Delete(*DiskFilename, true, true, false);
+	if (!bDeleted)
+	{
+		UE_LOG(LogConfigToolkit, Warning, TEXT("%s failed: Unreal file manager could not delete the file. ConfigName='%s', File='%s'."),
+			Operation, *ResolvedFilename, *DiskFilename);
+		return false;
+	}
+
+	GConfig->UnloadFile(ResolvedFilename);
+	GConfig->Remove(ResolvedFilename);
+	UE_LOG(LogConfigToolkit, Log, TEXT("%s completed. ConfigName='%s', File='%s'."), Operation, *ResolvedFilename, *DiskFilename);
+	return true;
+}
+
+bool UConfigToolkitBPLibrary::DoesConfigKeyExist(const FString& Section, const FString& Key, const FString& Filename)
+{
+	static const TCHAR* Operation = TEXT("Does Config Key Exist");
+
+	if (!HasConfig())
+	{
+		return false;
+	}
+
+	if (Key.TrimStartAndEnd().IsEmpty())
+	{
+		UE_LOG(LogConfigToolkit, Warning, TEXT("%s returned false: Key is empty."), Operation);
+		return false;
+	}
+
+	const FString ResolvedFilename = ResolveConfigFilename(Filename);
+	const bool bExists = DoesConfigKeyExistInFile(Section, Key, ResolvedFilename);
+	if (!bExists)
+	{
+		UE_LOG(LogConfigToolkit, Warning, TEXT("%s returned false: Key was not found. ConfigName='%s', File='%s', Section='%s', Key='%s'."),
+			Operation, *ResolvedFilename, *GetDiskConfigFilename(ResolvedFilename), *Section, *Key);
+	}
+
+	return bExists;
 }
 
 bool UConfigToolkitBPLibrary::DoesConfigFileExist(const FString& Filename)
