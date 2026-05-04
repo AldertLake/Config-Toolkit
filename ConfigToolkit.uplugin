@@ -3,22 +3,30 @@
 	"Version": 1,
 	"VersionName": "1.0",
 	"FriendlyName": "Configuration Toolkit",
-	"Description": "",
-	"Category": "Other",
+	"Description": "Blueprint runtime utilities for reading, writing, clearing, flushing, and deleting Unreal .ini config values, arrays, encrypted strings, and soft asset/class paths.",
+	"Category": "Blueprints",
 	"CreatedBy": "AldertLake",
-	"CreatedByURL": "",
-	"DocsURL": "",
-	"MarketplaceURL": "",
-	"SupportURL": "",
+	"CreatedByURL": "https://github.com/AldertLake",
+	"DocsURL": "https://aldertlake-docs.vercel.app/docs/config-toolkit",
+	"MarketplaceURL": "https://www.fab.com/listings/705ba556-9005-4d89-8008-3c9667eddcbe",
+	"SupportURL": "https://github.com/AldertLake/Config-Toolkit/issues",
 	"CanContainContent": false,
-	"IsBetaVersion": false,
+	"IsBetaVersion": true,
 	"IsExperimentalVersion": false,
 	"Installed": false,
 	"Modules": [
 		{
 			"Name": "ConfigToolkit",
 			"Type": "Runtime",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64",
+				"Mac",
+				"Linux",
+				"LinuxArm64",
+				"Android",
+				"IOS"
+			]
 		}
 	]
 }
