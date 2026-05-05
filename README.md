@@ -1,14 +1,14 @@
-# Config Toolkit
+<img src="./Resources/Icon128.png" alt="Screenshot" width="600">
+
+# Configuration Toolkit
 
 Config Toolkit is an Unreal Engine Blueprint-focused config plugin for reading and writing `.ini` values, arrays, encrypted strings, and soft asset/class references.
 
 Start here:
 
-- [Documentation overview](Documentation/README.md)
-- [Blueprint usage](Documentation/BlueprintUsage.md)
-- [Project settings](Documentation/Settings.md)
-- [C++ usage](Documentation/CppUsage.md)
-- [Troubleshooting](Documentation/Troubleshooting.md)
+- [Documentation overview](https://aldertlake-docs.vercel.app/docs/config-toolkit)
+- [Buy The Plugin](Documentation/BlueprintUsage.md)
+- [Download The Plugin](https://github.com/AldertLake/Config-Toolkit/releases)
 
 Key behavior:
 
