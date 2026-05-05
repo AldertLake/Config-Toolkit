@@ -1,3 +1,9 @@
+// ----------------------------------------------------------------------------------
+// Copyright (c) 2026 AldertLake. All Rights Reserved.
+// GitHub:   https://github.com/AldertLake/
+// Freelance:  https://www.upwork.com/freelancers/~01f46dab6bbf4fe99e?mp_source=share
+// ----------------------------------------------------------------------------------
+
 #pragma once
 
 #include "CoreMinimal.h"
@@ -88,7 +94,7 @@ public:
 	DECLARE_FUNCTION(execRemoveFromConfigArray);
 
 	/**
-	 * Encrypts one string value with the project AES key and writes the Base64 ciphertext to config.
+	 * Encrypts one string value with the project AES key and writes the Base64 ciphertext to config. Use it for lightweight local config privacy, not as a secure secret vault.
 	 * @param Section Config section name.
 	 * @param Key Config key name inside the section.
 	 * @param Value Plain text string to encrypt and save.
@@ -172,9 +178,9 @@ public:
 	static bool RemoveConfigSection(const FString& Section, UPARAM(DisplayName="File Name") const FString& FileName = FString(TEXT("")));
 
 	/**
-	 * Deletes a whole resolved config file from disk and unloads it from GConfig when possible.
+	 * Deletes a generated project config file from disk and unloads it from GConfig when possible.
 	 * @param FileName Optional config file name. Leave empty to use the Default Config File Name from Project Settings.
-	 * @return True if the file existed and was deleted.
+	 * @return True if the generated config file existed under the project's generated config directory and was deleted.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Config Toolkit|Utilities", meta=(DisplayName="Delete Config File", ReturnDisplayName="Success"))
 	static bool DeleteConfigFile(UPARAM(DisplayName="File Name") const FString& FileName = FString(TEXT("")));

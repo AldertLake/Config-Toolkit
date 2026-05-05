@@ -11,7 +11,7 @@
 	"MarketplaceURL": "https://www.fab.com/listings/705ba556-9005-4d89-8008-3c9667eddcbe",
 	"SupportURL": "https://github.com/AldertLake/Config-Toolkit/issues",
 	"CanContainContent": false,
-	"IsBetaVersion": true,
+	"IsBetaVersion": false,
 	"IsExperimentalVersion": false,
 	"Installed": false,
 	"Modules": [

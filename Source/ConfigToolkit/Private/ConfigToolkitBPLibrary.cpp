@@ -1,5 +1,12 @@
+// ----------------------------------------------------------------------------------
+// Copyright (c) 2026 AldertLake. All Rights Reserved.
+// GitHub:   https://github.com/AldertLake/
+// Freelance:  https://www.upwork.com/freelancers/~01f46dab6bbf4fe99e?mp_source=share
+// ----------------------------------------------------------------------------------
+
 #include "ConfigToolkitBPLibrary.h"
 
+#include "ConfigToolkit.h"
 #include "ConfigToolkitSettings.h"
 #include "Containers/StringConv.h"
 #include "CoreGlobals.h"
@@ -13,8 +20,6 @@
 #include "UObject/SoftObjectPath.h"
 #include "UObject/Stack.h"
 #include "UObject/UnrealType.h"
-
-DEFINE_LOG_CATEGORY_STATIC(LogConfigToolkit, Log, All);
 
 namespace ConfigToolkit::Private
 {
@@ -89,6 +94,26 @@ namespace ConfigToolkit::Private
 		}
 
 		return FConfigCacheIni::NormalizeConfigIniPath(FConfigCacheIni::GetDestIniFilename(*ResolvedFilename, nullptr, *FPaths::GeneratedConfigDir()));
+	}
+
+	bool IsPathInsideDirectory(const FString& Filename, const FString& Directory)
+	{
+		FString FullFilename = FPaths::ConvertRelativePathToFull(Filename);
+		FString FullDirectory = FPaths::ConvertRelativePathToFull(Directory);
+		FPaths::NormalizeFilename(FullFilename);
+		FPaths::NormalizeDirectoryName(FullDirectory);
+
+		if (FullFilename.Equals(FullDirectory, ESearchCase::IgnoreCase))
+		{
+			return true;
+		}
+
+		if (!FullDirectory.EndsWith(TEXT("/")))
+		{
+			FullDirectory += TEXT("/");
+		}
+
+		return FullFilename.StartsWith(FullDirectory, ESearchCase::IgnoreCase);
 	}
 
 	bool ValidateSectionAndKey(const TCHAR* Operation, const FString& Section, const FString& Key)
@@ -936,7 +961,6 @@ using namespace ConfigToolkit::Private;
 bool UConfigToolkitBPLibrary::WriteAnyConfigValue(const FString& Section, const FString& Key, const int32& Value, const FString& Filename)
 {
 	UE_LOG(LogConfigToolkit, Error, TEXT("Write Config Value failed: This wildcard node must be executed through the Blueprint VM custom thunk path. Native C++ calls cannot use the placeholder int32 signature."));
-	checkNoEntry();
 	return false;
 }
 
@@ -962,7 +986,6 @@ DEFINE_FUNCTION(UConfigToolkitBPLibrary::execWriteAnyConfigValue)
 bool UConfigToolkitBPLibrary::ReadAnyConfigValue(const FString& Section, const FString& Key, int32& Value, const FString& Filename)
 {
 	UE_LOG(LogConfigToolkit, Error, TEXT("Read Config Value failed: This wildcard node must be executed through the Blueprint VM custom thunk path. Native C++ calls cannot use the placeholder int32 signature."));
-	checkNoEntry();
 	return false;
 }
 
@@ -988,7 +1011,6 @@ DEFINE_FUNCTION(UConfigToolkitBPLibrary::execReadAnyConfigValue)
 bool UConfigToolkitBPLibrary::WriteConfigArray(const FString& Section, const FString& Key, const TArray<int32>& Values, const FString& Filename)
 {
 	UE_LOG(LogConfigToolkit, Error, TEXT("Write Config Array failed: This wildcard array node must be executed through the Blueprint VM custom thunk path. Native C++ calls cannot use the placeholder int32 array signature."));
-	checkNoEntry();
 	return false;
 }
 
@@ -1020,7 +1042,6 @@ DEFINE_FUNCTION(UConfigToolkitBPLibrary::execWriteConfigArray)
 bool UConfigToolkitBPLibrary::ReadConfigArray(const FString& Section, const FString& Key, TArray<int32>& Values, const FString& Filename)
 {
 	UE_LOG(LogConfigToolkit, Error, TEXT("Read Config Array failed: This wildcard array node must be executed through the Blueprint VM custom thunk path. Native C++ calls cannot use the placeholder int32 array signature."));
-	checkNoEntry();
 	return false;
 }
 
@@ -1052,7 +1073,6 @@ DEFINE_FUNCTION(UConfigToolkitBPLibrary::execReadConfigArray)
 bool UConfigToolkitBPLibrary::AddUniqueToConfigArray(const FString& Section, const FString& Key, const int32& Value, const FString& Filename)
 {
 	UE_LOG(LogConfigToolkit, Error, TEXT("Add Unique To Config Array failed: This wildcard node must be executed through the Blueprint VM custom thunk path. Native C++ calls cannot use the placeholder int32 signature."));
-	checkNoEntry();
 	return false;
 }
 
@@ -1078,7 +1098,6 @@ DEFINE_FUNCTION(UConfigToolkitBPLibrary::execAddUniqueToConfigArray)
 bool UConfigToolkitBPLibrary::RemoveFromConfigArray(const FString& Section, const FString& Key, const int32& Value, const FString& Filename)
 {
 	UE_LOG(LogConfigToolkit, Error, TEXT("Remove From Config Array failed: This wildcard node must be executed through the Blueprint VM custom thunk path. Native C++ calls cannot use the placeholder int32 signature."));
-	checkNoEntry();
 	return false;
 }
 
@@ -1280,6 +1299,13 @@ bool UConfigToolkitBPLibrary::DeleteConfigFile(const FString& Filename)
 
 	const FString ResolvedFilename = ResolveConfigFilename(Filename);
 	const FString DiskFilename = GetDiskConfigFilename(ResolvedFilename);
+	if (!IsPathInsideDirectory(DiskFilename, FPaths::GeneratedConfigDir()))
+	{
+		UE_LOG(LogConfigToolkit, Warning, TEXT("%s failed: Delete Config File only deletes generated config files under the project's generated config directory. ConfigName='%s', File='%s', AllowedDirectory='%s'."),
+			Operation, *ResolvedFilename, *DiskFilename, *FPaths::GeneratedConfigDir());
+		return false;
+	}
+
 	if (!FPaths::GetExtension(DiskFilename, false).Equals(TEXT("ini"), ESearchCase::IgnoreCase))
 	{
 		UE_LOG(LogConfigToolkit, Warning, TEXT("%s failed: Resolved file is not an .ini file. ConfigName='%s', File='%s'."),

@@ -1,5 +1,12 @@
+// ----------------------------------------------------------------------------------
+// Copyright (c) 2026 AldertLake. All Rights Reserved.
+// GitHub:   https://github.com/AldertLake/
+// Freelance:  https://www.upwork.com/freelancers/~01f46dab6bbf4fe99e?mp_source=share
+// ----------------------------------------------------------------------------------
+
 #include "ConfigToolkitSettings.h"
 
+#include "ConfigToolkit.h"
 #include "Containers/StringConv.h"
 
 #define LOCTEXT_NAMESPACE "ConfigToolkitSettings"
@@ -45,7 +52,7 @@ void UConfigToolkitSettings::PostEditChangeProperty(FPropertyChangedEvent& Prope
 	const FTCHARToUTF8 KeyBytes(*AESEncryptionKey);
 	if (!AESEncryptionKey.IsEmpty() && (AESEncryptionKey.Len() != 32 || KeyBytes.Length() != 32))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Config Toolkit AES Encryption Key must be exactly 32 characters and 32 UTF-8 bytes for AES-256. Current length: %d characters, %d bytes."), AESEncryptionKey.Len(), KeyBytes.Length());
+		UE_LOG(LogConfigToolkit, Warning, TEXT("Config Toolkit AES Encryption Key must be exactly 32 characters and 32 UTF-8 bytes for AES-256. Current length: %d characters, %d bytes."), AESEncryptionKey.Len(), KeyBytes.Length());
 	}
 }
 #endif

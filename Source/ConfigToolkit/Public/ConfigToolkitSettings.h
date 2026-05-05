@@ -1,3 +1,9 @@
+// ----------------------------------------------------------------------------------
+// Copyright (c) 2026 AldertLake. All Rights Reserved.
+// GitHub:   https://github.com/AldertLake/
+// Freelance:  https://www.upwork.com/freelancers/~01f46dab6bbf4fe99e?mp_source=share
+// ----------------------------------------------------------------------------------
+
 #pragma once
 
 #include "CoreMinimal.h"
@@ -15,16 +21,28 @@ class CONFIGTOOLKIT_API UConfigToolkitSettings : public UDeveloperSettings
 public:
 	UConfigToolkitSettings();
 
+	/**
+	 * Config file name used when a Blueprint node receives an empty File Name pin.
+	 */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="General", meta=(DisplayName="Default Config File Name", ToolTip="Config file name used when a Blueprint node receives an empty File Name pin."))
 	FString DefaultConfigFilename;
 
+	/**
+	 * When enabled, write and clear nodes flush immediately after changing config.
+	 */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="General", meta=(DisplayName="Automatically Flush Config", ToolTip="When enabled, write and clear nodes flush immediately after changing config. When disabled, call Flush Config manually."))
 	bool bAutomaticallyFlushConfig;
 
+	/**
+	 * When enabled, wildcard read and write nodes save and read soft references as path strings.
+	 */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="General", meta=(DisplayName="Automatically Handle Soft Reference Paths", ToolTip="When enabled, wildcard read and write nodes save and read Soft Object Reference and Soft Class Reference pins as path strings. When disabled, use the manual conversion nodes."))
 	bool bAutomaticallyHandleSoftReferencePaths;
 
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Encryption", meta=(DisplayName="AES Encryption Key", PasswordField=true, ToolTip="AES-256 key used by encrypted value nodes. Must be exactly 32 characters and 32 UTF-8 bytes."))
+	/**
+	 * AES-256 key used by encrypted value nodes. Must be exactly 32 characters and 32 UTF-8 bytes. Use for lightweight local config privacy, not as a secure secret vault.
+	 */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Encryption", meta=(DisplayName="AES Encryption Key", PasswordField=true, ToolTip="AES-256 key used by encrypted value nodes. Must be exactly 32 characters and 32 UTF-8 bytes. Use for lightweight local config privacy, not as a secure secret vault."))
 	FString AESEncryptionKey;
 
 	virtual FName GetCategoryName() const override;
