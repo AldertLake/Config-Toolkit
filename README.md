@@ -1,18 +1,24 @@
-<img src="./Resources/Icon128.png" alt="Screenshot" width="600">
-
 # Configuration Toolkit
 
-Config Toolkit is an Unreal Engine Blueprint-focused config plugin for reading and writing `.ini` values, arrays, encrypted strings, and soft asset/class references.
+An Unreal Engine Blueprint-focused plugin for reading, writing, and managing `.ini` config data directly from Blueprints.
 
-Start here:
+It supports standard values, arrays, encrypted strings, soft object references, and soft class references while keeping asset loading safe and explicit.
 
-- [Documentation overview](https://aldertlake-docs.vercel.app/docs/config-toolkit)
-- [Buy The Plugin](Documentation/BlueprintUsage.md)
-- [Download The Plugin](https://github.com/AldertLake/Config-Toolkit/releases)
+## Start Here
 
-Key behavior:
+- [Documentation Overview](https://aldertlake-docs.vercel.app/docs/config-toolkit)
+- [Buy the Plugin](Documentation/BlueprintUsage.md)
+- [Download the Plugin](https://github.com/AldertLake/Config-Toolkit/releases)
 
-- Soft Object Reference and Soft Class Reference pins can save/read path strings without synchronous loading.
-- Hard object/class reads are rejected by design; read soft references and use Unreal's async load nodes.
-- Normal `String` pins are preserved exactly and are never guessed as asset paths.
-- Config file deletion, key existence checks, section removal, and manual flush workflows are exposed to Blueprint.
+## Key Features
+
+- Read and write `.ini` values from Blueprints.
+- Save and load arrays.
+- Store encrypted strings.
+- Save and read Soft Object Reference and Soft Class Reference paths without forcing synchronous asset loading.
+- Prevent unsafe hard object/class reads by design.
+- Preserve normal `String` pins exactly as written.
+- Check if keys exist.
+- Delete config files.
+- Remove config sections.
+- Manually flush config changes when needed.
