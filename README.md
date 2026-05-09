@@ -7,7 +7,7 @@ It supports standard values, arrays, encrypted strings, soft object references, 
 ## Start Here
 
 - [Documentation Overview](https://aldertlake-docs.vercel.app/docs/config-toolkit)
-- [Buy the Plugin](Documentation/BlueprintUsage.md)
+- [Buy the Plugin](https://www.fab.com/listings/9186c8d0-f880-4277-84c4-a51a19220956)
 - [Download the Plugin](https://github.com/AldertLake/Config-Toolkit/releases)
 
 ## Key Features
