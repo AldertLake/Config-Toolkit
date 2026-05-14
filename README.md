@@ -1,5 +1,8 @@
 # Configuration Toolkit
 
+[![Stars](https://img.shields.io/github/stars/AldertLake/Config-Toolkit?style=for-the-badge&logo=github)](https://github.com/AldertLake/Config-Toolkit/stargazers)
+[![Last Updated](https://img.shields.io/github/last-commit/AldertLake/Config-Toolkit?style=for-the-badge&label=last%20updated)](https://github.com/AldertLake/Config-Toolkit/commits)
+
 An Unreal Engine Blueprint-focused plugin for reading, writing, and managing `.ini` config data directly from Blueprints.
 
 It supports standard values, arrays, encrypted strings, soft object references, and soft class references while keeping asset loading safe and explicit.
@@ -7,8 +10,8 @@ It supports standard values, arrays, encrypted strings, soft object references, 
 ## Start Here
 
 - [Documentation Overview](https://aldertlake-docs.vercel.app/docs/config-toolkit)
-- [Buy the Plugin](https://www.fab.com/listings/9186c8d0-f880-4277-84c4-a51a19220956)
-- [Download the Plugin](https://github.com/AldertLake/Config-Toolkit/releases)
+- [Buy the Plugin (Support)](https://www.fab.com/listings/9186c8d0-f880-4277-84c4-a51a19220956)
+- [Download the Plugin (Free)](https://github.com/AldertLake/Config-Toolkit/releases)
 
 ## Key Features
 
