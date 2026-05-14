@@ -178,9 +178,11 @@ public:
 	static bool RemoveConfigSection(const FString& Section, UPARAM(DisplayName="File Name") const FString& FileName = FString(TEXT("")));
 
 	/**
-	 * Deletes a generated project config file from disk and unloads it from GConfig when possible.
-	 * @param FileName Optional config file name. Leave empty to use the Default Config File Name from Project Settings.
-	 * @return True if the generated config file existed under the project's generated config directory and was deleted.
+	 * Deletes a generated project config file from disk, or deletes a non-generated config file when File Name is an absolute local .ini path.
+	 * Bare names, empty input, and relative paths still resolve under the project's generated config directory. Relative paths such as "Config/Hello.ini" do not target Project/Config.
+	 * Source, plugin, and other-drive config files require an absolute local .ini path.
+	 * @param FileName Optional config file name. Leave empty to use the Default Config File Name from Project Settings, or pass an absolute local .ini path for non-generated config deletion.
+	 * @return True if the resolved generated config file, or the supplied absolute local .ini file, existed and was deleted.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Config Toolkit|Utilities", meta=(DisplayName="Delete Config File", ReturnDisplayName="Success"))
 	static bool DeleteConfigFile(UPARAM(DisplayName="File Name") const FString& FileName = FString(TEXT("")));
