@@ -1,7 +1,7 @@
 {
 	"FileVersion": 3,
 	"Version": 1,
-	"VersionName": "1.0",
+	"VersionName": "1.1",
 	"FriendlyName": "Configuration Toolkit",
 	"Description": "Blueprint runtime utilities for reading, writing, clearing, flushing, and deleting Unreal .ini config values, arrays, encrypted strings, and soft asset/class paths.",
 	"Category": "Blueprints",

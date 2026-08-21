@@ -1,8 +1,8 @@
-// ---------------------------------------------------
-// Copyright (c) 2025 AldertLake. All Rights Reserved.
-// GitHub:   https://github.com/AldertLake/
-// Discord:  https://discord.gg/QpPPfh6WVn
-// ---------------------------------------------------
+// -----------------------------------------------------
+// Copyright   (c) 2025 AldertLake. All Rights Reserved.
+// GitHub:     https://github.com/AldertLake/
+// Discord:    https://discord.gg/QpPPfh6WVn
+// -----------------------------------------------------
 
 #pragma once
 
@@ -40,9 +40,9 @@ public:
 	bool bAutomaticallyHandleSoftReferencePaths;
 
 	/**
-	 * AES-256 key used by encrypted value nodes. Must be exactly 32 characters and 32 UTF-8 bytes. Use for lightweight local config privacy, not as a secure secret vault.
+	 * AES-256 key used by encrypted value nodes. Must be exactly 32 characters and 32 UTF-8 bytes. 
 	 */
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Encryption", meta=(DisplayName="AES Encryption Key", PasswordField=true, ToolTip="AES-256 key used by encrypted value nodes. Must be exactly 32 characters and 32 UTF-8 bytes. Use for lightweight local config privacy, not as a secure secret vault."))
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Encryption", meta=(DisplayName="AES Encryption Key", PasswordField=true, ToolTip="AES-256 key used by encrypted value nodes. Must be exactly 32 characters and 32 UTF-8 bytes. "))
 	FString AESEncryptionKey;
 
 	virtual FName GetCategoryName() const override;

@@ -1,8 +1,8 @@
-// ---------------------------------------------------
-// Copyright (c) 2025 AldertLake. All Rights Reserved.
-// GitHub:   https://github.com/AldertLake/
-// Discord:  https://discord.gg/QpPPfh6WVn
-// ---------------------------------------------------
+// -----------------------------------------------------
+// Copyright   (c) 2025 AldertLake. All Rights Reserved.
+// GitHub:     https://github.com/AldertLake/
+// Discord:    https://discord.gg/QpPPfh6WVn
+// -----------------------------------------------------
 
 #include "ConfigToolkitBPLibrary.h"
 
@@ -235,9 +235,9 @@ namespace ConfigToolkit::Private
 			return true;
 		}
 
-		for (const TPair<int32, FString>& HierarchyEntry : Branch.Hierarchy)
+		for (const auto& HierarchyEntry : Branch.Hierarchy)
 		{
-			if (TryNormalizeAbsoluteConfigPath(HierarchyEntry.Value, NormalizedCandidate)
+			if (TryNormalizeAbsoluteConfigPath(FString(HierarchyEntry.Value), NormalizedCandidate)
 				&& NormalizedCandidate.Equals(NormalizedDiskFilename, ESearchCase::IgnoreCase))
 			{
 				return true;

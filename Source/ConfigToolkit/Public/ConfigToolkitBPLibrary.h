@@ -1,8 +1,8 @@
-// ---------------------------------------------------
-// Copyright (c) 2025 AldertLake. All Rights Reserved.
-// GitHub:   https://github.com/AldertLake/
-// Discord:  https://discord.gg/QpPPfh6WVn
-// ---------------------------------------------------
+// -----------------------------------------------------
+// Copyright   (c) 2025 AldertLake. All Rights Reserved.
+// GitHub:     https://github.com/AldertLake/
+// Discord:    https://discord.gg/QpPPfh6WVn
+// -----------------------------------------------------
 
 #pragma once
 
@@ -94,7 +94,7 @@ public:
 	DECLARE_FUNCTION(execRemoveFromConfigArray);
 
 	/**
-	 * Encrypts one string value with the project AES key and writes the Base64 ciphertext to config. Use it for lightweight local config privacy, not as a secure secret vault.
+	 * Encrypts one string value with the project AES key and writes the Base64 ciphertext to config. 
 	 * @param Section Config section name.
 	 * @param Key Config key name inside the section.
 	 * @param Value Plain text string to encrypt and save.
@@ -179,8 +179,6 @@ public:
 
 	/**
 	 * Deletes a generated project config file from disk, or deletes a non-generated config file when File Name is an absolute local .ini path.
-	 * Bare names, empty input, and relative paths still resolve under the project's generated config directory. Relative paths such as "Config/Hello.ini" do not target Project/Config.
-	 * Source, plugin, and other-drive config files require an absolute local .ini path.
 	 * @param FileName Optional config file name. Leave empty to use the Default Config File Name from Project Settings, or pass an absolute local .ini path for non-generated config deletion.
 	 * @return True if the resolved generated config file, or the supplied absolute local .ini file, existed and was deleted.
 	 */
